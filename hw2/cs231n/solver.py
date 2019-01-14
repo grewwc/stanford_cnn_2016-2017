@@ -121,6 +121,7 @@ class Solver(object):
         self.y_val = data['y_val']
 
         # Unpack keyword arguments
+        # try:
         self.update_rule = kwargs.pop('update_rule', 'sgd')
         self.optim_config = kwargs.pop('optim_config', {})
         self.lr_decay = kwargs.pop('lr_decay', 1.0)
@@ -132,6 +133,8 @@ class Solver(object):
         self.checkpoint_name = kwargs.pop('checkpoint_name', None)
         self.print_every = kwargs.pop('print_every', 10)
         self.verbose = kwargs.pop('verbose', True)
+        # except KeyError:
+        #   pass 
 
         # Throw an error if there are extra keyword arguments
         if len(kwargs) > 0:

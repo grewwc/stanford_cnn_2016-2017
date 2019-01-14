@@ -171,6 +171,8 @@ class FullyConnectedNet(object):
         self.dtype = dtype
         self.params = {}
 
+        
+        self.hidden_dims_copy = hidden_dims.copy()
         ############################################################################
         # TODO: Initialize the parameters of the network, storing all values in    #
         # the self.params dictionary. Store weights and biases for the first layer #
@@ -183,11 +185,19 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
-        pass
+        self.hidden_dims_copy.insert(0, input_dim)
+        self.hidden_dims_copy.append(num_classes)
+        for i in range(len(self.hidden_dims_copy) - 1):
+            cur_w_shape = (self.hidden_dims_copy[i], self.hidden_dims_copy[i+1])
+            cur_w = np.random.randn(*cur_w_shape) * weight_scale 
+            cur_b_shape = self.hidden_dims_copy[i+1]
+            cur_b = np.zeros(cur_b_shape)
+            self.params['W'+str(i+1)] = cur_w 
+            self.params['b'+str(i+1)] = cur_b 
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
-
+       
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
         # (train / test). You can pass the same dropout_param to each dropout layer.
@@ -241,7 +251,23 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+        total_cache = []
+
+        affine_in = X 
+
+        for i in range(self.num_layers):
+            affine_out, cache = affine_forward(affine_in, self.params['W'+str(i+1)], 
+                self.params['b'+str(i+1)])
+            total_cache.append({'affine':cache, 'iter':str(i+1)}) 
+            if i < self.num_layers - 1:
+                relu_out, cache = relu_forward(affine_out) 
+                total_cache.append({'relu':cache, 'iter':str(i+1)}) 
+                affine_in = relu_out 
+            else:
+                total_cache[-1]['last'] = 1
+            
+        scores = affine_out
+ 
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -264,7 +290,25 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, grad_scores = softmax_loss(scores, y) 
+        for i in range(self.num_layers - 1):
+            loss += 0.5 * self.reg * np.sum(self.params['W'+str(i+1)]**2)
+            
+        grad_upstream = grad_scores
+        for cache in reversed(total_cache):
+            if 'affine' in cache:
+                cur_dx, cur_dw, cur_db = affine_backward(grad_upstream, cache['affine'])
+                grads['W'+cache['iter']] = cur_dw 
+                grads['b'+cache['iter']] = cur_db 
+                if 'last' not in cache:
+                    grads['W'+cache['iter']] += 1.0 * self.reg * cache['affine'][1]
+                grad_upstream = cur_dx 
+            
+            if 'relu' in cache:
+                cur_dx = relu_backward(grad_upstream, cache['relu']) 
+                grad_upstream = cur_dx 
+
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
